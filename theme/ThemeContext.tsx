@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Theme, lightTheme, darkTheme } from './theme';
+
+const THEME_KEY = '@app/theme.override';
 
 type ThemeContextValue = {
   theme: Theme;
@@ -17,12 +20,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const scheme = override ?? systemScheme ?? 'light';
   const theme = scheme === 'dark' ? darkTheme : lightTheme;
 
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_KEY).then(stored => {
+      if (stored === 'light' || stored === 'dark') setOverride(stored);
+    });
+  }, []);
+
   function toggleTheme() {
-    setOverride(prev =>
-      prev === null
-        ? scheme === 'dark' ? 'light' : 'dark'
-        : prev === 'dark' ? 'light' : 'dark'
-    );
+    setOverride(prev => {
+      const next: 'light' | 'dark' =
+        prev === null
+          ? scheme === 'dark' ? 'light' : 'dark'
+          : prev === 'dark' ? 'light' : 'dark';
+      AsyncStorage.setItem(THEME_KEY, next);
+      return next;
+    });
   }
 
   return (
