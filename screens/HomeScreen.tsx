@@ -1,10 +1,28 @@
+import { type ComponentProps } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme, Colors } from '../theme';
 import { useSettings, Settings } from '../settings';
 import { isValidUrl } from '../utils/validation';
+
+// --- Shelly types ---
+
+interface ShellyEmeter {
+	power: number;
+	is_valid: boolean;
+	total: number;
+	total_returned: number;
+}
+
+interface ShellyStatus {
+	emeters: [ShellyEmeter, ShellyEmeter];
+}
+
+// --- Poll config ---
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -26,12 +44,148 @@ function buildPollConfig(s: Settings): PollConfig {
 	return { active: false };
 }
 
+// --- ArcGauge ---
+
+interface ArcGaugeProps {
+	value: number;
+	min: number;
+	max: number;
+	size: number;
+	strokeWidth?: number;
+	trackColor: string;
+	valueColor: string;
+}
+
+function buildArcPath(
+	cx: number,
+	cy: number,
+	r: number,
+	startGaugeDeg: number,
+	endGaugeDeg: number,
+): string {
+	// gauge degrees: 0 = leftmost (min), 180 = rightmost (max), arc curves upward
+	// maps to standard math angle: stdDeg = 180 - gaugeDeg
+	const toRad = (gaugeDeg: number) => ((180 - gaugeDeg) * Math.PI) / 180;
+	const sx = cx + r * Math.cos(toRad(startGaugeDeg));
+	const sy = cy - r * Math.sin(toRad(startGaugeDeg));
+	const ex = cx + r * Math.cos(toRad(endGaugeDeg));
+	const ey = cy - r * Math.sin(toRad(endGaugeDeg));
+	const largeArc = endGaugeDeg - startGaugeDeg > 180 ? 1 : 0;
+	// sweep=0 (CCW in SVG y-down space) → arc goes upward through the top
+	return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 0 ${ex} ${ey}`;
+}
+
+function ArcGauge({ value, min, max, size, strokeWidth = 12, trackColor, valueColor }: ArcGaugeProps) {
+	const cx = size / 2;
+	const cy = size / 2;
+	const r = size / 2 - strokeWidth;
+	const svgHeight = size / 2 + strokeWidth;
+
+	const clamped = Math.min(max, Math.max(min, value));
+	const gaugeAngle = ((clamped - min) / (max - min)) * 180;
+
+	const bgPath = buildArcPath(cx, cy, r, 0, 180);
+	const valuePath = gaugeAngle > 0 ? buildArcPath(cx, cy, r, 0, gaugeAngle) : null;
+
+	return (
+		<Svg width={size} height={svgHeight}>
+			<Path
+				d={bgPath}
+				stroke={trackColor}
+				strokeWidth={strokeWidth}
+				strokeLinecap="round"
+				fill="none"
+			/>
+			{valuePath && (
+				<Path
+					d={valuePath}
+					stroke={valueColor}
+					strokeWidth={strokeWidth}
+					strokeLinecap="round"
+					fill="none"
+				/>
+			)}
+		</Svg>
+	);
+}
+
+// --- GaugeItem ---
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
+interface GaugeItemProps {
+	value: number;
+	min: number;
+	max: number;
+	size: number;
+	strokeWidth?: number;
+	trackColor: string;
+	valueColor: string;
+	iconName: IoniconName;
+	iconColor: string;
+	labelColor: string;
+}
+
+function GaugeItem({ value, min, max, size, strokeWidth, trackColor, valueColor, iconName, iconColor, labelColor }: GaugeItemProps) {
+	const kw = (value / 1000).toFixed(2);
+	return (
+		<View style={{ alignItems: 'center' }}>
+			<ArcGauge
+				value={value}
+				min={min}
+				max={max}
+				size={size}
+				strokeWidth={strokeWidth}
+				trackColor={trackColor}
+				valueColor={valueColor}
+			/>
+			<Ionicons name={iconName} size={20} color={iconColor} style={{ marginTop: 6 }} />
+			<Text style={{ color: labelColor, fontSize: 13, marginTop: 2 }}>{kw} kW</Text>
+		</View>
+	);
+}
+
+// --- Status banner ---
+
+type StatusInfo = {
+	icon: 'checkmark-circle' | 'warning' | 'trending-up';
+	color: string;
+	text: string;
+} | null;
+
+function getStatus(grid: number, solar: number, colors: Colors): StatusInfo {
+	if (solar > 100 && grid >= -400 && grid <= 400) {
+		return {
+			icon: 'checkmark-circle',
+			color: colors.positive,
+			text: 'Best situation – consuming what we produce',
+		};
+	}
+	if (grid > 2300) {
+		return {
+			icon: 'warning',
+			color: colors.negative,
+			text: 'Worst situation – near the limit. Stop using energy!',
+		};
+	}
+	if (grid < 0) {
+		return {
+			icon: 'trending-up',
+			color: colors.primary,
+			text: 'Selling energy to the grid',
+		};
+	}
+	return null;
+}
+
+// --- HomeScreen ---
+
 export default function HomeScreen({ navigation }: Props) {
 	const { theme } = useTheme();
 	const styles = makeStyles(theme.colors);
 	const { settings } = useSettings();
 
-	const [data, setData] = useState<unknown>(null);
+	const [data, setData] = useState<ShellyStatus | null>(null);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	const pollConfig = buildPollConfig(settings);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -55,7 +209,7 @@ export default function HomeScreen({ navigation }: Props) {
 					throw new Error(`HTTP ${response.status}`);
 				}
 				const json: unknown = await response.json();
-				setData(json);
+				setData(json as ShellyStatus);
 			} catch (err) {
 				if (intervalRef.current !== null) {
 					clearInterval(intervalRef.current);
@@ -92,11 +246,65 @@ export default function HomeScreen({ navigation }: Props) {
 		navigation.navigate('Settings');
 	}
 
+	const grid = data?.emeters[0].power ?? 0;
+	const solar = data?.emeters[1].power ?? 0;
+	const house = grid + solar;
+	const status = getStatus(grid, solar, theme.colors);
+	const c = theme.colors;
+
 	return (
 		<View style={styles.container}>
-			<Text style={styles.placeholder}>
-				{pollConfig.active ? 'Polling…' : 'Configure a device in Settings'}
-			</Text>
+			{!pollConfig.active ? (
+				<Text style={styles.placeholder}>Configure a device in Settings</Text>
+			) : (
+				<>
+					<View style={styles.gaugeRow}>
+						<GaugeItem
+							value={solar}
+							min={0}
+							max={3500}
+							size={120}
+							strokeWidth={10}
+							trackColor={c.border}
+							valueColor={c.accent}
+							iconName="sunny"
+							iconColor={c.accent}
+							labelColor={c.text}
+						/>
+						<GaugeItem
+							value={grid}
+							min={-3500}
+							max={3500}
+							size={160}
+							strokeWidth={14}
+							trackColor={c.border}
+							valueColor={c.primary}
+							iconName="flash"
+							iconColor={c.primary}
+							labelColor={c.text}
+						/>
+						<GaugeItem
+							value={house}
+							min={0}
+							max={5000}
+							size={120}
+							strokeWidth={10}
+							trackColor={c.border}
+							valueColor={c.accent}
+							iconName="home"
+							iconColor={c.accent}
+							labelColor={c.text}
+						/>
+					</View>
+
+					{status && (
+						<View style={styles.statusBanner}>
+							<Ionicons name={status.icon} size={24} color={status.color} />
+							<Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+						</View>
+					)}
+				</>
+			)}
 
 			<Modal
 				visible={errorMsg !== null}
@@ -146,6 +354,25 @@ const makeStyles = (colors: Colors) =>
 		placeholder: {
 			fontSize: 16,
 			color: colors.textSecondary,
+		},
+		gaugeRow: {
+			flexDirection: 'row',
+			alignItems: 'flex-end',
+			justifyContent: 'center',
+			gap: 16,
+			paddingHorizontal: 16,
+		},
+		statusBanner: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 8,
+			marginTop: 32,
+			paddingHorizontal: 24,
+		},
+		statusText: {
+			fontSize: 15,
+			fontWeight: '500',
+			flexShrink: 1,
 		},
 		overlay: {
 			flex: 1,
