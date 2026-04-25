@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme, Colors } from '../theme';
 import { useSettings } from '../settings';
+import { isValidUrl, isValidIp } from '../utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -57,6 +58,11 @@ export default function SettingsScreen({}: Props) {
           autoCapitalize="none"
           keyboardType="url"
         />
+        {cloudUrl.trim() !== '' && (
+          <Text style={isValidUrl(cloudUrl) ? styles.hintValid : styles.hintInvalid}>
+            {isValidUrl(cloudUrl) ? 'Valid URL' : 'Invalid URL'}
+          </Text>
+        )}
         <View style={styles.divider} />
         <TextInput
           style={styles.input}
@@ -92,6 +98,11 @@ export default function SettingsScreen({}: Props) {
           autoCapitalize="none"
           keyboardType="decimal-pad"
         />
+        {localIp.trim() !== '' && (
+          <Text style={isValidIp(localIp) ? styles.hintValid : styles.hintInvalid}>
+            {isValidIp(localIp) ? 'Valid IP' : 'Invalid IP'}
+          </Text>
+        )}
       </View>
 
     </ScrollView>
@@ -146,5 +157,17 @@ const makeStyles = (colors: Colors) =>
       paddingVertical: 13,
       fontSize: 16,
       color: colors.text,
+    },
+    hintValid: {
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      fontSize: 12,
+      color: colors.positive,
+    },
+    hintInvalid: {
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      fontSize: 12,
+      color: colors.negative,
     },
   });
