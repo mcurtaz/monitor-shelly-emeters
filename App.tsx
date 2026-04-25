@@ -6,6 +6,7 @@ import HomeScreen from './screens/HomeScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import { RootStackParamList } from './navigation/types';
 import { ThemeProvider, useTheme } from './theme';
+import { SettingsProvider } from './settings';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -66,7 +67,9 @@ function AppNavigator() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppNavigator />
+      <SettingsProvider>
+        <AppNavigator />
+      </SettingsProvider>
     </ThemeProvider>
   );
 }

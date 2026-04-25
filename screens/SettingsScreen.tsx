@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-nat
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme, Colors } from '../theme';
+import { useSettings } from '../settings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -11,11 +12,12 @@ export default function SettingsScreen({}: Props) {
   const { colors } = theme;
   const styles = makeStyles(colors);
 
-  const [useCloud, setUseCloud] = useState(false);
-  const [cloudUrl, setCloudUrl] = useState('');
-  const [authKey, setAuthKey] = useState('');
-  const [deviceId, setDeviceId] = useState('');
-  const [localIp, setLocalIp] = useState('');
+  const { settings, updateSettings } = useSettings();
+
+  const [cloudUrl, setCloudUrl] = useState(settings.cloudUrl);
+  const [authKey, setAuthKey] = useState(settings.authKey);
+  const [deviceId, setDeviceId] = useState(settings.deviceId);
+  const [localIp, setLocalIp] = useState(settings.localIp);
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
@@ -38,8 +40,8 @@ export default function SettingsScreen({}: Props) {
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Use Cloud</Text>
           <Switch
-            value={useCloud}
-            onValueChange={setUseCloud}
+            value={settings.useCloud}
+            onValueChange={v => updateSettings({ useCloud: v })}
             trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor={colors.surface}
           />
@@ -51,6 +53,7 @@ export default function SettingsScreen({}: Props) {
           placeholderTextColor={colors.textSecondary}
           value={cloudUrl}
           onChangeText={setCloudUrl}
+          onBlur={() => updateSettings({ cloudUrl })}
           autoCapitalize="none"
           keyboardType="url"
         />
@@ -61,6 +64,7 @@ export default function SettingsScreen({}: Props) {
           placeholderTextColor={colors.textSecondary}
           value={authKey}
           onChangeText={setAuthKey}
+          onBlur={() => updateSettings({ authKey })}
           autoCapitalize="none"
           secureTextEntry
         />
@@ -71,6 +75,7 @@ export default function SettingsScreen({}: Props) {
           placeholderTextColor={colors.textSecondary}
           value={deviceId}
           onChangeText={setDeviceId}
+          onBlur={() => updateSettings({ deviceId })}
           autoCapitalize="none"
         />
       </View>
@@ -83,6 +88,7 @@ export default function SettingsScreen({}: Props) {
           placeholderTextColor={colors.textSecondary}
           value={localIp}
           onChangeText={setLocalIp}
+          onBlur={() => updateSettings({ localIp })}
           autoCapitalize="none"
           keyboardType="decimal-pad"
         />
