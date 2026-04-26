@@ -92,7 +92,7 @@ npm run web        # Run in browser
 
 ## Build a debug APK for Android (no Play Store)
 
-The `android/` folder was generated with `expo prebuild` and is committed to the repo. You do not need to run prebuild again unless you change native config in `app.json`.
+The `android/` folder was generated with `npx expo prebuild --platform android` and is committed to the repo. You do not need to run prebuild again unless you change native config in `app.json`.
 
 ### Prerequisites
 
