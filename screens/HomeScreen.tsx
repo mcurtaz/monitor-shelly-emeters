@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GaugeItem, BipolarGaugeItem } from '../components/GaugeItem';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -67,21 +67,21 @@ function getStatus(grid: number, solar: number, colors: Colors): StatusInfo {
 		return {
 			icon: 'checkmark-circle',
 			color: colors.positive,
-			text: 'Best situation – consuming what we produce',
+			text: 'Consumiamo quello che produciamo',
 		};
 	}
 	if (grid > 2300) {
 		return {
 			icon: 'warning',
 			color: colors.negative,
-			text: 'Worst situation – near the limit. Stop using energy!',
+			text: 'Attenzione: consumo di corrente eccessivo',
 		};
 	}
 	if (grid < 0) {
 		return {
 			icon: 'trending-up',
 			color: colors.primary,
-			text: 'Selling energy to the grid',
+			text: 'Stiamo vendendo energia a Enel',
 		};
 	}
 	return null;
@@ -91,11 +91,14 @@ function getStatus(grid: number, solar: number, colors: Colors): StatusInfo {
 
 export default function HomeScreen({ navigation }: Props) {
 	const { theme } = useTheme();
+	const { width, height } = useWindowDimensions();
+	const isLandscape = width > height;
 	const styles = makeStyles(theme.colors);
 	const { settings } = useSettings();
 
 	const [data, setData] = useState<ShellyDeviceStatus | null>(null);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+	const [activeGauge, setActiveGauge] = useState(0);
 	const pollConfig = buildPollConfig(settings);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -164,11 +167,21 @@ export default function HomeScreen({ navigation }: Props) {
 	const status = getStatus(grid, solar, theme.colors);
 	const c = theme.colors;
 
+	const portraitSizeSide = Math.min(260, Math.round(width * 0.55));
+	const portraitSizeCenter = Math.min(300, Math.round(width * 0.65));
+
+	const statusBanner = status && (
+		<View style={styles.statusBanner}>
+			<Ionicons name={status.icon} size={24} color={status.color} />
+			<Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+		</View>
+	);
+
 	return (
 		<View style={styles.container}>
 			{!pollConfig.active ? (
 				<Text style={styles.placeholder}>Configure a device in Settings</Text>
-			) : (
+			) : isLandscape ? (
 				<>
 					<View style={styles.gaugeRow}>
 						<GaugeItem
@@ -209,13 +222,69 @@ export default function HomeScreen({ navigation }: Props) {
 							labelColor={c.text}
 						/>
 					</View>
-
-					{status && (
-						<View style={styles.statusBanner}>
-							<Ionicons name={status.icon} size={24} color={status.color} />
-							<Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+					{statusBanner}
+				</>
+			) : (
+				<>
+					<ScrollView
+						horizontal
+						pagingEnabled
+						showsHorizontalScrollIndicator={false}
+						style={styles.mobileScroll}
+						onMomentumScrollEnd={(e) => {
+							setActiveGauge(Math.round(e.nativeEvent.contentOffset.x / width));
+						}}
+					>
+						<View style={[styles.gaugePage, { width }]}>
+							<GaugeItem
+								value={solar}
+								min={0}
+								max={3500}
+								size={portraitSizeSide}
+								strokeWidth={14}
+								trackColor={c.border}
+								valueColor={c.accent}
+								iconName="sunny"
+								iconColor={c.accent}
+								labelColor={c.text}
+							/>
 						</View>
-					)}
+						<View style={[styles.gaugePage, { width }]}>
+							<BipolarGaugeItem
+								value={grid}
+								min={-3500}
+								max={3500}
+								size={portraitSizeCenter}
+								strokeWidth={18}
+								trackColor={c.border}
+								positiveColor={c.negative}
+								negativeColor={c.positive}
+								iconName="flash"
+								iconColor={c.primary}
+								labelColor={c.text}
+							/>
+						</View>
+						<View style={[styles.gaugePage, { width }]}>
+							<GaugeItem
+								value={house}
+								min={0}
+								max={5000}
+								size={portraitSizeSide}
+								strokeWidth={14}
+								trackColor={c.border}
+								valueColor={c.accent}
+								iconName="home"
+								iconColor={c.accent}
+								labelColor={c.text}
+							/>
+						</View>
+					</ScrollView>
+					<View style={styles.dotRow}>
+						{[0, 1, 2].map((i) => (
+							<View key={i} style={[styles.dot, activeGauge === i && styles.dotActive]} />
+						))}
+					</View>
+					{statusBanner}
 				</>
 			)}
 
@@ -342,5 +411,27 @@ const makeStyles = (colors: Colors) =>
 			fontSize: 15,
 			fontWeight: '600',
 			color: colors.textSecondary,
+		},
+		mobileScroll: {
+			flexGrow: 0,
+		},
+		gaugePage: {
+			alignItems: 'center',
+			justifyContent: 'center',
+			paddingVertical: 40,
+		},
+		dotRow: {
+			flexDirection: 'row',
+			gap: 8,
+			marginTop: 16,
+		},
+		dot: {
+			width: 8,
+			height: 8,
+			borderRadius: 4,
+			backgroundColor: colors.border,
+		},
+		dotActive: {
+			backgroundColor: colors.primary,
 		},
 	});
