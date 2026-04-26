@@ -1,6 +1,6 @@
 import { type ComponentProps } from 'react';
 import { Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Line, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
 export type IoniconName = ComponentProps<typeof Ionicons>['name'];
@@ -43,8 +43,7 @@ function buildArcPath(
 	const ex = cx + r * Math.cos(toRad(endGaugeDeg));
 	const ey = cy - r * Math.sin(toRad(endGaugeDeg));
 	const largeArc = endGaugeDeg - startGaugeDeg > 180 ? 1 : 0;
-	// sweep=0 (CCW in SVG y-down space) → arc goes upward through the top
-	return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 0 ${ex} ${ey}`;
+	return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`;
 }
 
 export function ArcGauge({ value, min, max, size, strokeWidth = 12, trackColor, valueColor }: ArcGaugeProps) {
@@ -58,6 +57,10 @@ export function ArcGauge({ value, min, max, size, strokeWidth = 12, trackColor, 
 
 	const bgPath = buildArcPath(cx, cy, r, 0, 180);
 	const valuePath = gaugeAngle > 0 ? buildArcPath(cx, cy, r, 0, gaugeAngle) : null;
+
+	const needleRad = ((180 - gaugeAngle) * Math.PI) / 180;
+	const nx = cx + r * 0.85 * Math.cos(needleRad);
+	const ny = cy - r * 0.85 * Math.sin(needleRad);
 
 	return (
 		<Svg width={size} height={svgHeight}>
@@ -77,6 +80,8 @@ export function ArcGauge({ value, min, max, size, strokeWidth = 12, trackColor, 
 					fill="none"
 				/>
 			)}
+			<Line x1={cx} y1={cy} x2={nx} y2={ny} stroke={valueColor} strokeWidth={2.5} strokeLinecap="round" />
+			<Circle cx={cx} cy={cy} r={4} fill={valueColor} />
 		</Svg>
 	);
 }
