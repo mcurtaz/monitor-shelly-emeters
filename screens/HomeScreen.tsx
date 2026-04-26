@@ -12,13 +12,24 @@ import { isValidUrl } from '../utils/validation';
 
 interface ShellyEmeter {
 	power: number;
+	reactive: number;
+	pf: number;
+	voltage: number;
 	is_valid: boolean;
 	total: number;
 	total_returned: number;
 }
 
-interface ShellyStatus {
+interface ShellyDeviceStatus {
 	emeters: [ShellyEmeter, ShellyEmeter];
+}
+
+interface ShellyCloudResponse {
+	isok: boolean;
+	data: {
+		online: boolean;
+		device_status: ShellyDeviceStatus;
+	};
 }
 
 // --- Poll config ---
@@ -26,7 +37,7 @@ interface ShellyStatus {
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 type PollConfig =
-	| { active: true; url: string; interval: number }
+	| { active: true; url: string; interval: number; isCloud: boolean }
 	| { active: false };
 
 function buildPollConfig(s: Settings): PollConfig {
@@ -35,10 +46,10 @@ function buildPollConfig(s: Settings): PollConfig {
 			`${s.cloudUrl}/device/status` +
 			`?id=${encodeURIComponent(s.deviceId)}` +
 			`&auth_key=${encodeURIComponent(s.authKey)}`;
-		return { active: true, url, interval: 4000 };
+		return { active: true, url, interval: 4000, isCloud: true };
 	}
 	if (!s.useCloud && s.localIp.trim()) {
-		return { active: true, url: `http://${s.localIp}/status`, interval: 2500 };
+		return { active: true, url: `http://${s.localIp}/status`, interval: 2500, isCloud: false };
 	}
 	return { active: false };
 }
@@ -83,7 +94,7 @@ export default function HomeScreen({ navigation }: Props) {
 	const styles = makeStyles(theme.colors);
 	const { settings } = useSettings();
 
-	const [data, setData] = useState<ShellyStatus | null>(null);
+	const [data, setData] = useState<ShellyDeviceStatus | null>(null);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	const pollConfig = buildPollConfig(settings);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -98,7 +109,7 @@ export default function HomeScreen({ navigation }: Props) {
 			return;
 		}
 
-		const { url, interval } = pollConfig;
+		const { url, interval, isCloud } = pollConfig;
 
 		async function poll(): Promise<void> {
 			try {
@@ -106,8 +117,11 @@ export default function HomeScreen({ navigation }: Props) {
 				if (!response.ok) {
 					throw new Error(`HTTP ${response.status}`);
 				}
-				const json: unknown = await response.json();
-				setData(json as ShellyStatus);
+				const raw: unknown = await response.json();
+				const status: ShellyDeviceStatus = isCloud
+					? (raw as ShellyCloudResponse).data.device_status
+					: (raw as ShellyDeviceStatus);
+				setData(status);
 			} catch (err) {
 				if (intervalRef.current !== null) {
 					clearInterval(intervalRef.current);
