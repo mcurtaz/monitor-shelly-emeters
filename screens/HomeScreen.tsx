@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { GaugeItem } from '../components/GaugeItem';
+import { GaugeItem, BipolarGaugeItem } from '../components/GaugeItem';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme, Colors } from '../theme';
@@ -46,7 +46,7 @@ function buildPollConfig(s: Settings): PollConfig {
 			`${s.cloudUrl}/device/status` +
 			`?id=${encodeURIComponent(s.deviceId)}` +
 			`&auth_key=${encodeURIComponent(s.authKey)}`;
-		return { active: true, url, interval: 4000, isCloud: true };
+		return { active: true, url, interval: 5000, isCloud: true };
 	}
 	if (!s.useCloud && s.localIp.trim()) {
 		return { active: true, url: `http://${s.localIp}/status`, interval: 2500, isCloud: false };
@@ -183,14 +183,15 @@ export default function HomeScreen({ navigation }: Props) {
 							iconColor={c.accent}
 							labelColor={c.text}
 						/>
-						<GaugeItem
+						<BipolarGaugeItem
 							value={grid}
 							min={-3500}
 							max={3500}
 							size={160}
 							strokeWidth={14}
 							trackColor={c.border}
-							valueColor={c.primary}
+							positiveColor={c.negative}
+							negativeColor={c.positive}
 							iconName="flash"
 							iconColor={c.primary}
 							labelColor={c.text}
