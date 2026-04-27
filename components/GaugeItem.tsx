@@ -86,7 +86,7 @@ export function ArcGauge({ value, min, max, size, strokeWidth = 12, trackColor, 
 }
 
 export function GaugeItem({ value, min, max, size, strokeWidth, trackColor, valueColor, iconName, iconColor, labelColor }: GaugeItemProps) {
-	const kw = (value / 1000).toFixed(2);
+	//const kw = (value / 1000).toFixed(2);
 	return (
 		<View style={{ alignItems: 'center' }}>
 			<ArcGauge
@@ -99,7 +99,7 @@ export function GaugeItem({ value, min, max, size, strokeWidth, trackColor, valu
 				valueColor={valueColor}
 			/>
 			<Ionicons name={iconName} size={20} color={iconColor} style={{ marginTop: 6 }} />
-			<Text style={{ color: labelColor, fontSize: 13, marginTop: 2 }}>{kw} kW</Text>
+			<Text style={{ color: labelColor, fontSize: 13, marginTop: 2 }}>{value} W</Text>
 		</View>
 	);
 }
@@ -144,7 +144,7 @@ export function BipolarGaugeItem({ value, min, max, size, strokeWidth = 12, trac
 	const ny = cy - r * 0.85 * Math.sin(needleRad);
 	const needleColor = clamped > 0 ? positiveColor : clamped < 0 ? negativeColor : trackColor;
 
-	const kw = (value / 1000).toFixed(2);
+	//const kw = (value / 1000).toFixed(2);
 
 	return (
 		<View style={{ alignItems: 'center' }}>
@@ -155,7 +155,7 @@ export function BipolarGaugeItem({ value, min, max, size, strokeWidth = 12, trac
 				<Circle cx={cx} cy={cy} r={4} fill={needleColor} />
 			</Svg>
 			<Ionicons name={iconName} size={20} color={iconColor} style={{ marginTop: 6 }} />
-			<Text style={{ color: labelColor, fontSize: 13, marginTop: 2 }}>{kw} kW</Text>
+			<Text style={{ color: labelColor, fontSize: 13, marginTop: 2 }}>{value} W</Text>
 		</View>
 	);
 }
