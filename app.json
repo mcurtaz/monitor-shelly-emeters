@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "monitor-shelly-emeters",
+    "name": "Casa Curtaz",
     "slug": "monitor-shelly-emeters",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "version": "1.0.2",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
